@@ -1,140 +1,43 @@
-document.addEventListener('DOMContentLoaded', () => {
-  const follower = document.getElementById('mcir');
+import awsIot from "aws-iot-device-sdk";
+import { WebSocketServer } from "ws";
+import fs from "fs";
 
-  document.addEventListener('mousemove', (e) => {
-      const x = e.clientX;
-      const y = e.clientY;
+const keyPath = "C:/Users/sahub/Downloads/private.key";
+const certPath = "C:/Users/sahub/Downloads/cir.crt";
+const caPath = "C:/Users/sahub/Downloads/AmazonRootCA1.pem";
 
-      follower.style.top = `${y}px`;
-      follower.style.left = `${x}px`;
+if (!fs.existsSync(keyPath)) console.error("❌ Private Key file not found!");
+if (!fs.existsSync(certPath)) console.error("❌ Certificate file not found!");
+if (!fs.existsSync(caPath)) console.error("❌ CA file not found!");
+
+const device = awsIot.device({ keyPath, certPath, caPath, clientId: "Bibhu", host: "aebfzuqqcp989-ats.iot.ap-southeast-2.amazonaws.com" });
+
+
+// Handle AWS IoT Connection
+device.on("connect", () => {
+  console.log("✅ Connected to AWS IoT Core");
+  device.subscribe("esp32/control");
+});
+
+device.on("message", (topic, payload) => {
+  console.log(`📩 Message received: ${payload.toString()} on topic ${topic}`);
+});
+
+// WebSocket Server for Web Control
+const wss = new WebSocketServer({ port: 8080 });
+
+wss.on("connection", (ws) => {
+  console.log("✅ WebSocket Connection Established");
+
+  ws.on("message", (message) => {
+    const command = JSON.parse(message).message;
+    console.log(`📤 Sending to IoT: ${command}`);
+    device.publish("esp32/control", JSON.stringify({ message: command }));
+  });
+
+  device.on("message", (topic, payload) => {
+    ws.send(payload.toString());
   });
 });
 
-function circleChaptaKaro() {
-  
-  var xscale = 1;
-  var yscale = 1;
-
-  var xprev = 0;
-  var yprev = 0;
-
-  window.addEventListener("mousemove", function (dets) {
-    clearTimeout(timeout);
-
-    xscale = gsap.utils.clamp(0.8, 1.2, dets.clientX - xprev);
-    yscale = gsap.utils.clamp(0.8, 1.2, dets.clientY - yprev);
-
-    xprev = dets.clientX;
-    yprev = dets.clientY;
-
-    circleMouseFollower(xscale, yscale);
-
-    timeout = setTimeout(function () {
-      document.querySelector(
-        "#mcir"
-      ).style.transform = `translate(${dets.clientX}px, ${dets.clientY}px) scale(1, 1)`;
-    }, 100);
-  });
-}
-
-function circleMouseFollower(xscale, yscale) {
-  window.addEventListener("mousemove", function (dets) {
-    document.querySelector(
-      "#mcir"
-    ).style.transform = `translate(${dets.clientX}px, ${dets.clientY}px) scale(${xscale}, ${yscale})`;
-  });
-}
-
-circleChaptaKaro();
-circleMouseFollower();
-
-function anmi(){
-  var t1=gsap.timeline();
-  t1.from("#nav",{
-      y:'-10',
-      opacity:0,
-      duration:1.5,
-      ease: Expo.easeInOut
-  })
-  
- 
-  t1.to(".ni",{
-    y: 0,
-    opacity: 100,
-    duration: 1.5,
-    delay: -1,
-    ease: Expo.easeInOut,
-  })
-  .from("#herofoot",{
-      y:-10,
-      opacity: 0,
-      duration: 1.5,
-      delay: -1,
-      ease: Expo.easeInOut,
-  });
-  
-}
-
-
-// function anmi2(){
-//   var t1=gsap.timeline();
-//   t1.from("#hrading",{
-//       y:'-10',
-//       opacity:0,
-//       duration:0.5,
-//       ease: Expo
-//   })
-  
-  
-//   .to("#heading",{
-//       y:0,
-//       ease:Expo.easeInOut,
-//       duration:2
-//   })
-  
-// }
-
-anmi();
-anmi2();
-
-document.querySelectorAll(".elem").forEach(function (elem) {
-var rotate = 0;
-var diffrot = 0;
-
-elem.addEventListener("mouseleave", function (dets) {
-  gsap.to(elem.querySelector("img"), {
-    opacity: 0,
-    ease: Power3,
-    duration: 0.5,
-  });
-});
-
-elem.addEventListener("mousemove", function (dets) {
-  var diff = dets.clientY - elem.getBoundingClientRect().top;
-  diffrot = dets.clientX - rotate;
-  rotate = dets.clientX;
-  gsap.to(elem.querySelector("img"), {
-    opacity: 1,
-    ease: Power3,
-    top: diff,
-    left: dets.clientX,
-    rotate: gsap.utils.clamp(-20, 20, diffrot * 0.5),
-  });
-});
-});
-
-
-
-
-
-document.getElementById('menuButton').addEventListener('click', function() {
-const sidebar = document.getElementById('sidebar');
-const sidebarWidth = sidebar.clientWidth;
-
-if (sidebar.style.left === '0px') {
-    sidebar.style.left = `-${sidebarWidth}px`;
-} else {
-    sidebar.style.left = '0px';
-}
-});
-
+console.log("🚀 WebSocket Server Running on ws://localhost:8080");
